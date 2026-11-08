@@ -28,6 +28,7 @@ header p{margin:0;color:var(--muted);font-size:15px}
 .n{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:var(--fg);color:var(--bg);font-family:var(--body);font-weight:600;font-size:14px;display:grid;place-items:center}
 .step.done .n{background:var(--ok)}
 .step p{margin:0;color:var(--muted);font-size:14.5px}
+a.filebtn{text-decoration:none;box-sizing:border-box}
 button,.filebtn{font:600 17px var(--body);border:0;border-radius:8px;padding:14px 16px;background:var(--accent);color:var(--accent-fg);cursor:pointer;text-align:center;display:block;width:100%}
 button:disabled{opacity:.4;cursor:not-allowed}
 button.sec{background:transparent;color:var(--fg);border:1px solid var(--line);font-weight:500;font-size:15px;padding:10px}
@@ -53,7 +54,8 @@ footer{font-size:13px;color:var(--muted)}
   </header>
   <section class="step" id="s0">
     <h2><span class="n">0</span>Avisarle a la moto</h2>
-    <p>Mandá por SMS al número de tu alarma: <b>ACTUALIZAR</b> y tu PIN (por ejemplo <b>ACTUALIZAR 5209</b>). Te contesta que el modo actualización quedó activo por 10 minutos.</p>
+    <p id="smsTxt">Mandá por SMS al número de tu alarma: <b>ACTUALIZAR</b> y tu PIN (por ejemplo <b>ACTUALIZAR 5209</b>). Te contesta que el modo actualización quedó activo por 10 minutos.</p>
+    <a class="filebtn" id="btnSms" href="sms:?body=ACTUALIZAR%20">Mandar SMS a la moto</a>
   </section>
   <section class="step" id="s1">
     <h2><span class="n">1</span>Conectar</h2>
@@ -162,6 +164,11 @@ $('archivo').addEventListener('change',async()=>{
   if(!f){archivo=null;$('fileInfo').textContent='Ningún archivo elegido';revisar();return;}
   cargar(new Uint8Array(await f.arrayBuffer()),f.name);
 });
+(()=>{
+  let t=(new URLSearchParams(location.search).get('t')||'').replace(/[^0-9+]/g,'');
+  $('btnSms').href='sms:'+t+'?body='+encodeURIComponent('ACTUALIZAR ');
+  $('smsTxt').innerHTML='Tocá el botón: se abren tus mensajes con <b>ACTUALIZAR</b> ya escrito'+(t?' y el número de tu alarma':'')+'. Agregá tu <b>PIN</b> al final (por ejemplo <b>ACTUALIZAR 5209</b>) y mandalo. Te contesta que el modo actualización quedó activo por 10 minutos.';
+})();
 (async()=>{
   let a=new URLSearchParams(location.search).get('a');
   if(!a) return;
