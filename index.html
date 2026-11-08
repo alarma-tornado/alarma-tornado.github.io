@@ -70,7 +70,7 @@ footer{font-size:13px;color:var(--muted)}
   </section>
   <section class="step" id="s3">
     <h2><span class="n">3</span>Enviar</h2>
-    <p>No cierres esta página ni bloquees el celular hasta que termine.</p>
+    <p class="warn">⚠️ No dejes que se apague la pantalla. Dejá el celular quieto al lado de la moto, sin cerrar esta página, hasta que termine.</p>
     <button id="btnEnv" type="button" disabled>Enviar a la central</button>
     <div class="bar"><div id="barra"></div></div>
     <div class="nums"><span id="pct">0 %</span><span id="vel">–</span><span id="falta">–</span></div>
@@ -95,6 +95,10 @@ function log(t){const l=$('log');const h=new Date().toLocaleTimeString();l.textC
 function estado(t,c){const e=$('estado');e.textContent=t;e.className=c||'';}
 function revisar(){$('btnEnv').disabled=!(ctrl&&archivo)||enviando;}
 let cola=[];
+let traba=null;
+async function pantallaOn(){try{if('wakeLock' in navigator&&document.visibilityState==='visible')traba=await navigator.wakeLock.request('screen');}catch(e){}}
+function pantallaOff(){try{if(traba)traba.release();}catch(e){}traba=null;}
+document.addEventListener('visibilitychange',()=>{if(enviando&&document.visibilityState==='visible')pantallaOn();});
 function onNotif(ev){
   const m=dec.decode(ev.target.value).trim();
   log('Central: '+m);
@@ -181,7 +185,7 @@ $('archivo').addEventListener('change',async()=>{
 $('btnCan').addEventListener('click',()=>{cancelado=true;});
 $('btnEnv').addEventListener('click',async()=>{
   if(!ctrl||!archivo) return;
-  enviando=true;cancelado=false;revisar();$('btnCan').hidden=false;
+  enviando=true;cancelado=false;revisar();$('btnCan').hidden=false;pantallaOn();
   const total=archivo.length;
   try{
     estado('Preparando la central…');
@@ -212,7 +216,7 @@ $('btnEnv').addEventListener('click',async()=>{
     if(!$('estado').classList.contains('bad')) estado('No se pudo: '+(e.message||e),'bad');
     log('Error: '+(e.message||e));
   }
-  enviando=false;$('btnCan').hidden=true;revisar();
+  enviando=false;$('btnCan').hidden=true;pantallaOff();revisar();
 });
 </script>
 </body></html>
