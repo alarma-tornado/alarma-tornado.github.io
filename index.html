@@ -55,7 +55,9 @@ footer{font-size:13px;color:var(--muted)}
   <section class="step" id="s0">
     <h2><span class="n">0</span>Avisarle a la moto</h2>
     <p id="smsTxt">Mandá por SMS al número de tu alarma: <b>ACTUALIZAR</b> y tu PIN (por ejemplo <b>ACTUALIZAR 5209</b>). Te contesta que el modo actualización quedó activo por 10 minutos.</p>
-    <a class="filebtn" id="btnSms" href="sms:?body=ACTUALIZAR%20">Mandar SMS a la moto</a>
+    <label for="pin" style="font-weight:600;font-size:15px">Tu PIN (los 4 números que usás con la alarma)</label>
+    <input id="pin" type="tel" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="····" style="font:600 28px var(--mono);letter-spacing:.4em;text-align:center;padding:10px;border:2px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);width:100%;box-sizing:border-box">
+    <a class="filebtn" id="btnSms" href="#" aria-disabled="true" style="opacity:.4">Mandar SMS a la moto</a>
   </section>
   <section class="step" id="s1">
     <h2><span class="n">1</span>Conectar</h2>
@@ -166,8 +168,18 @@ $('archivo').addEventListener('change',async()=>{
 });
 (()=>{
   let t=(new URLSearchParams(location.search).get('t')||'').replace(/[^0-9+]/g,'');
-  $('btnSms').href='sms:'+t+'?body='+encodeURIComponent('ACTUALIZAR ');
-  $('smsTxt').innerHTML='Tocá el botón: se abren tus mensajes con <b>ACTUALIZAR</b> ya escrito'+(t?' y el número de tu alarma':'')+'. Agregá tu <b>PIN</b> al final (por ejemplo <b>ACTUALIZAR 5209</b>) y mandalo. Te contesta que el modo actualización quedó activo por 10 minutos.';
+  const b=$('btnSms'), pin=$('pin');
+  $('smsTxt').innerHTML='Escribí tu <b>PIN</b> y tocá el botón: se abren tus mensajes con todo listo'+(t?', ya dirigido a tu alarma':'')+'. Solo tocá <b>Enviar</b>. Te contesta que el modo actualización quedó activo por 10 minutos.';
+  function armar(){
+    pin.value=pin.value.replace(/[^0-9]/g,'').slice(0,4);
+    const ok=pin.value.length===4;
+    b.style.opacity=ok?'1':'.4';
+    b.setAttribute('aria-disabled',ok?'false':'true');
+    b.href=ok?('sms:'+t+'?body='+encodeURIComponent('ACTUALIZAR '+pin.value)):'#';
+  }
+  pin.addEventListener('input',armar);
+  b.addEventListener('click',e=>{ if(pin.value.length!==4){ e.preventDefault(); pin.focus(); pin.style.borderColor='var(--bad)'; } });
+  armar();
 })();
 (async()=>{
   let a=new URLSearchParams(location.search).get('a');
