@@ -1,0 +1,182 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Actualizar TORNADO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: una sola columna tipo planilla de taller; tres pasos en orden, el estado siempre a la vista */
+:root{
+  --bg:#f2f0ec; --panel:#ffffff; --fg:#1d2124; --muted:#5d6468; --line:#d8d4cc;
+  --accent:#d9481f; --accent-fg:#ffffff; --ok:#1f7a4a; --bad:#b3261e; --track:#e6e2da;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#15181a; --panel:#1e2225; --fg:#eceae6; --muted:#a3a9ad; --line:#30363a;
+  --accent:#f0683f; --accent-fg:#15181a; --ok:#4cc488; --bad:#ff7a70; --track:#2a2f33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15181a; --panel:#1e2225; --fg:#eceae6; --muted:#a3a9ad; --line:#30363a;
+  --accent:#f0683f; --accent-fg:#15181a; --ok:#4cc488; --bad:#ff7a70; --track:#2a2f33; color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:560px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+header .brand{font-family:var(--display);font-weight:700;letter-spacing:.14em;color:var(--accent);font-size:14px;text-transform:uppercase}
+h1{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.05;margin:2px 0 4px;text-wrap:balance}
+header p{margin:0;color:var(--muted);font-size:15px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.step h2{margin:0;font-family:var(--display);font-weight:600;font-size:21px;display:flex;align-items:center;gap:10px}
+.n{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:var(--fg);color:var(--bg);font-family:var(--body);font-weight:600;font-size:14px;display:grid;place-items:center}
+.step.done .n{background:var(--ok)}
+.step p{margin:0;color:var(--muted);font-size:14.5px}
+button,.filebtn{font:600 17px var(--body);border:0;border-radius:8px;padding:14px 16px;background:var(--accent);color:var(--accent-fg);cursor:pointer;text-align:center;display:block;width:100%;box-sizing:border-box}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.sec{background:transparent;color:var(--fg);border:1px solid var(--line);font-weight:500;font-size:15px;padding:10px}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+.info{font-family:var(--mono);font-size:13.5px;color:var(--fg);background:var(--track);border-radius:6px;padding:8px 10px;overflow-wrap:anywhere}
+.warn{color:var(--bad);font-size:14.5px;font-weight:500}
+.bar{height:14px;border-radius:7px;background:var(--track);overflow:hidden}
+.bar>div{height:100%;width:0;background:var(--accent);transition:width .2s}
+.nums{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-family:var(--mono);font-size:13.5px;color:var(--muted)}
+#estado{font-weight:600;font-size:16px}
+#estado.ok{color:var(--ok)} #estado.bad{color:var(--bad)}
+.log{font-family:var(--mono);font-size:12.5px;color:var(--muted);max-height:150px;overflow:auto;white-space:pre-wrap;margin:0}
+footer{font-size:13px;color:var(--muted)}
+[hidden]{display:none!important}
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <div class="brand">Alarma Tornado</div>
+    <h1>Actualizar la central</h1>
+    <p>Prueba en la placa de banco. Parate al lado de la central con el Bluetooth del celular prendido.</p>
+  </header>
+  <section class="step" id="s1">
+    <h2><span class="n">1</span>Conectar</h2>
+    <p>Tocá el botón y elegí <b>TORNADO-PRUEBA</b> en la lista.</p>
+    <button id="btnCon" type="button">Conectar por Bluetooth</button>
+    <div class="info" id="conInfo">Sin conectar</div>
+  </section>
+  <section class="step" id="s2">
+    <h2><span class="n">2</span>Elegir el archivo</h2>
+    <p>Está en <b>ArduinoDroid › precompiled</b>. Elegí el que termina en <b>.cpp.bin</b> (el más grande, de más de 1 MB). No elijas bootloader ni partitions.</p>
+    <label class="filebtn" for="archivo">Elegir archivo<input id="archivo" type="file"></label>
+    <div class="info" id="fileInfo">Ningún archivo elegido</div>
+    <div class="warn" id="fileWarn" hidden></div>
+  </section>
+  <section class="step" id="s3">
+    <h2><span class="n">3</span>Enviar</h2>
+    <p>Tarda unos minutos. No cierres la página ni bloquees el celular hasta que termine.</p>
+    <button id="btnEnv" type="button" disabled>Enviar a la central</button>
+    <div class="bar"><div id="barra"></div></div>
+    <div class="nums"><span id="pct">0 %</span><span id="vel">–</span><span id="falta">–</span></div>
+    <div id="estado">Esperando</div>
+    <button id="btnCan" class="sec" type="button" hidden>Cancelar</button>
+  </section>
+  <section class="step">
+    <h2>Registro</h2>
+    <pre class="log" id="log"></pre>
+  </section>
+  <footer>Al terminar, la central hace 2 pitidos y arranca sola con el programa nuevo.</footer>
+</div>
+<script>
+const SVC='7e1a0001-5a3c-4f6e-9b21-70726e61646f';
+const CTRL='7e1a0002-5a3c-4f6e-9b21-70726e61646f';
+const DATA='7e1a0003-5a3c-4f6e-9b21-70726e61646f';
+const CHUNK=500;
+const $=id=>document.getElementById(id);
+let dev=null, ctrl=null, data=null, archivo=null, esperando=null, cancelado=false, enviando=false;
+const enc=new TextEncoder(), dec=new TextDecoder();
+function log(t){const l=$('log');const h=new Date().toLocaleTimeString();l.textContent+=h+'  '+t+'\n';l.scrollTop=l.scrollHeight;}
+function estado(t,c){const e=$('estado');e.textContent=t;e.className=c||'';}
+function revisar(){$('btnEnv').disabled=!(ctrl&&archivo)||enviando;}
+function onNotif(ev){
+  const m=dec.decode(ev.target.value).trim();
+  log('Central: '+m);
+  if(esperando&&esperando.test(m)){const f=esperando;esperando=null;f.res(m);}
+}
+function esperar(regex,ms){
+  return new Promise((res,rej)=>{
+    const t=setTimeout(()=>{esperando=null;rej(new Error('La central no contestó a tiempo'));},ms);
+    esperando={test:m=>regex.test(m)||m.startsWith('ERR'),res:m=>{clearTimeout(t);res(m);}};
+  });
+}
+async function escribir(car,bytes){
+  if(car.writeValueWithResponse) return car.writeValueWithResponse(bytes);
+  return car.writeValue(bytes);
+}
+$('btnCon').addEventListener('click',async()=>{
+  if(!navigator.bluetooth){
+    $('conInfo').textContent='Este navegador no tiene Bluetooth. Abrí esta página en Chrome, en un celular Android.';
+    log('navigator.bluetooth no existe');return;
+  }
+  try{
+    $('conInfo').textContent='Buscando…';
+    dev=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'TORNADO'}],optionalServices:[SVC]});
+    dev.addEventListener('gattserverdisconnected',()=>{ctrl=null;data=null;$('conInfo').textContent='Se desconectó';$('s1').classList.remove('done');log('Desconectado');revisar();});
+    $('conInfo').textContent='Conectando con '+dev.name+'…';
+    const srv=await dev.gatt.connect();
+    const svc=await srv.getPrimaryService(SVC);
+    ctrl=await svc.getCharacteristic(CTRL);
+    data=await svc.getCharacteristic(DATA);
+    await ctrl.startNotifications();
+    ctrl.addEventListener('characteristicvaluechanged',onNotif);
+    $('conInfo').textContent='Conectado a '+dev.name;
+    $('s1').classList.add('done');
+    log('Conectado a '+dev.name);
+  }catch(e){
+    ctrl=null;
+    let msg=e.message||String(e);
+    if(e.name==='SecurityError') msg='El navegador no deja usar Bluetooth desde acá. Abrí la página directamente en Chrome.';
+    if(e.name==='NotFoundError') msg='No elegiste ninguna central, o no apareció. Revisá que esté prendida y cerca.';
+    $('conInfo').textContent=msg; log('Error al conectar: '+(e.name||'')+' '+(e.message||''));
+  }
+  revisar();
+});
+$('archivo').addEventListener('change',async()=>{
+  const f=$('archivo').files[0]; archivo=null; $('fileWarn').hidden=true; $('s2').classList.remove('done');
+  if(!f){$('fileInfo').textContent='Ningún archivo elegido';revisar();return;}
+  const buf=new Uint8Array(await f.arrayBuffer());
+  $('fileInfo').textContent=f.name+' · '+(f.size/1024).toFixed(0)+' KB';
+  let aviso='';
+  if(/bootloader|partitions/i.test(f.name)) aviso='Ese no es: elegí el que termina en .cpp.bin, sin bootloader ni partitions.';
+  else if(buf[0]!==0xE9) aviso='Este archivo no parece un programa de ESP32.';
+  else if(f.size>1310720) aviso='El programa es demasiado grande para actualizar (más de 1,25 MB).';
+  if(aviso){$('fileWarn').textContent=aviso;$('fileWarn').hidden=false;}
+  else{archivo=buf;$('s2').classList.add('done');log('Archivo listo: '+f.name+' ('+f.size+' bytes)');}
+  revisar();
+});
+$('btnCan').addEventListener('click',()=>{cancelado=true;});
+$('btnEnv').addEventListener('click',async()=>{
+  if(!ctrl||!archivo) return;
+  enviando=true;cancelado=false;revisar();$('btnCan').hidden=false;
+  const total=archivo.length;
+  try{
+    estado('Preparando la central…');
+    await escribir(ctrl,enc.encode('START '+total));
+    const r=await esperar(/^OK/,20000);
+    if(r.startsWith('ERR')) throw new Error(r.slice(4));
+    estado('Enviando…');
+    const t0=performance.now();
+    for(let i=0;i<total;i+=CHUNK){
+      if(cancelado){await escribir(ctrl,enc.encode('ABORT'));throw new Error('Cancelado por vos. La central sigue con el programa que tenía.');}
+      await escribir(data,archivo.slice(i,i+CHUNK));
+      const hecho=Math.min(i+CHUNK,total), seg=(performance.now()-t0)/1000;
+      const kbs=hecho/1024/Math.max(seg,0.001);
+      $('barra').style.width=(hecho/total*100).toFixed(1)+'%';
+      $('pct').textContent=(hecho/total*100).toFixed(0)+' %';
+      $('vel').textContent=kbs.toFixed(1)+' KB/s';
+      const resto=(total-hecho)/1024/Math.max(kbs,0.01);
+      $('falta').textContent='faltan '+(resto>=60?Math.floor(resto/60)+' min '+Math.round(resto%60)+' s':Math.round(resto)+' s');
+    }
+    estado('Grabando y revisando…');
+    const fin=await esperar(/^DONE/,30000);
+    if(fin.startsWith('ERR')) throw new Error(fin.slice(4));
+    $('s3').classList.add('done');
+    estado('Listo: la central se actualizó y está arrancando con el programa nuevo.','ok');
+    log('Actualización terminada en '+((performance.now()-t0)/1000).toFixed(0)+' s');
+  }catch(e){
+    estado('No se pudo: '+(e.message||e),'bad'); log('Error: '+(e.message||e));
+  }
+  enviando=false;$('btnCan').hidden=true;revisar();
+});
+</script>
+</body></html>
