@@ -1,0 +1,123 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preparar actualización TORNADO</title>
+<style>
+:root{--bg:#f2f0ec;--panel:#ffffff;--fg:#1d2124;--muted:#5d6468;--line:#d8d4cc;--accent:#d9481f;--accent-fg:#ffffff;--ok:#1f7a4a;--bad:#b3261e;--track:#e6e2da;--mono:ui-monospace,Menlo,monospace}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,Roboto,sans-serif;font-size:16px;line-height:1.45}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:14px}
+.brand{font-weight:700;letter-spacing:.14em;color:var(--accent);font-size:14px}
+h1{font-size:30px;margin:2px 0 4px}
+header p{margin:0;color:var(--muted);font-size:15px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.step h2{margin:0;font-size:20px;display:flex;align-items:center;gap:10px}
+.n{width:28px;height:28px;border-radius:50%;background:var(--fg);color:var(--bg);font-size:14px;display:grid;place-items:center}
+.step.done .n{background:var(--ok)}
+.step p{margin:0;color:var(--muted);font-size:14.5px}
+button,.filebtn{font:600 17px sans-serif;border:0;border-radius:8px;padding:14px 16px;background:var(--accent);color:var(--accent-fg);text-align:center;display:block;width:100%;box-sizing:border-box}
+button:disabled{opacity:.4}
+button.sec{background:transparent;color:var(--fg);border:1px solid var(--line);font-size:15px;padding:10px}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+.info{font-family:var(--mono);font-size:13.5px;background:var(--track);border-radius:6px;padding:8px 10px;overflow-wrap:anywhere}
+.warn{color:var(--bad);font-size:14.5px}
+#estado{font-weight:600}
+#estado.ok{color:var(--ok)} #estado.bad{color:var(--bad)}
+footer{font-size:13px;color:var(--muted)}
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <div class="brand">ALARMA TORNADO</div>
+    <h1>Preparar actualización</h1>
+    <p>Convierte el programa compilado en un archivo cifrado para mandarle al cliente. Sin la clave, el archivo no sirve para nada.</p>
+  </header>
+  <section class="step" id="s1">
+    <h2><span class="n">1</span>Clave de actualización</h2>
+    <p>Pegá la clave de 64 letras y números de tu hoja privada.</p>
+    <input id="clave" type="password" autocomplete="off" spellcheck="false" placeholder="Pegá la clave acá" style="font:15px monospace;padding:12px;border:1px solid var(--line);border-radius:8px;width:100%;box-sizing:border-box">
+    <label style="display:flex;gap:8px;align-items:center;font-size:14.5px;color:var(--muted)"><input id="recordar" type="checkbox"> Recordarla en este celular</label>
+    <div class="info" id="claveInfo">Sin clave</div>
+  </section>
+  <section class="step" id="s2">
+    <h2><span class="n">2</span>Programa compilado</h2>
+    <p>En ArduinoDroid: compilá, <b>Sketch › Guardar precompilado</b>, y elegí acá el que termina en <b>.cpp.bin</b> (el de más de 1 MB) de la carpeta <b>ArduinoDroid › precompiled</b>.</p>
+    <label class="filebtn" for="archivo">Elegir archivo<input id="archivo" type="file"></label>
+    <div class="info" id="fileInfo">Ningún archivo elegido</div>
+    <div class="warn" id="fileWarn" hidden></div>
+  </section>
+  <section class="step" id="s3">
+    <h2><span class="n">3</span>Cifrar y mandar</h2>
+    <button id="btnCif" type="button" disabled>Cifrar</button>
+    <div id="estado">Esperando</div>
+    <button id="btnCompartir" type="button" hidden>Compartir (WhatsApp)</button>
+    <button id="btnBajar" class="sec" type="button" hidden>Guardar en el celular</button>
+  </section>
+  <footer>La clave no sale de tu celular: el cifrado se hace en esta página, sin mandar nada a internet.</footer>
+</div>
+<script>
+async function cifrarTornado(plano, claveHex){
+  const subtle=crypto.subtle;
+  const k=new Uint8Array(32);
+  for(let i=0;i<32;i++) k[i]=parseInt(claveHex.substr(i*2,2),16);
+  const iv=new Uint8Array(16); crypto.getRandomValues(iv);
+  const cab=new Uint8Array(24);
+  cab.set([84,79,82,78,1,0,0,0],0); cab.set(iv,8);
+  const kAes=await subtle.importKey('raw',k,{name:'AES-CTR'},false,['encrypt']);
+  const cif=new Uint8Array(await subtle.encrypt({name:'AES-CTR',counter:iv,length:128},kAes,plano));
+  const kMacRaw=new Uint8Array(await subtle.digest('SHA-256',k));
+  const kMac=await subtle.importKey('raw',kMacRaw,{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const cuerpo=new Uint8Array(24+cif.length); cuerpo.set(cab,0); cuerpo.set(cif,24);
+  const firma=new Uint8Array(await subtle.sign('HMAC',kMac,cuerpo));
+  const out=new Uint8Array(cuerpo.length+32); out.set(cuerpo,0); out.set(firma,cuerpo.length);
+  return out;
+}
+const $=id=>document.getElementById(id);
+let plano=null, salida=null, nombreSalida='';
+function claveOk(){ return /^[0-9a-fA-F]{64}$/.test($('clave').value.trim()); }
+function revisar(){
+  const ok=claveOk(), v=$('clave').value.trim();
+  $('claveInfo').textContent=ok?'Clave correcta':(v?'La clave tiene que tener 64 caracteres (tiene '+v.length+')':'Sin clave');
+  $('s1').classList.toggle('done',ok);
+  $('btnCif').disabled=!(ok&&plano);
+}
+try{ const g=localStorage.getItem('claveOta'); if(g){$('clave').value=g;$('recordar').checked=true;} }catch(e){}
+$('clave').addEventListener('input',revisar);
+$('recordar').addEventListener('change',()=>{ try{ if($('recordar').checked&&claveOk()) localStorage.setItem('claveOta',$('clave').value.trim()); else localStorage.removeItem('claveOta'); }catch(e){} });
+$('archivo').addEventListener('change',async()=>{
+  const f=$('archivo').files[0]; plano=null; $('fileWarn').hidden=true; $('s2').classList.remove('done');
+  if(f){
+    const b=new Uint8Array(await f.arrayBuffer());
+    $('fileInfo').textContent=f.name+' · '+(f.size/1024).toFixed(0)+' KB';
+    let aviso='';
+    if(/bootloader|partitions/i.test(f.name)) aviso='Ese no es: elegí el que termina en .cpp.bin, sin bootloader ni partitions.';
+    else if(b[0]!==0xE9) aviso='Este archivo no es un programa compilado de ESP32.';
+    else if(f.size>1310720) aviso='El programa pesa más de 1,25 MB: no entra para actualizar.';
+    if(aviso){$('fileWarn').textContent=aviso;$('fileWarn').hidden=false;} else {plano=b;$('s2').classList.add('done');}
+  } else $('fileInfo').textContent='Ningún archivo elegido';
+  revisar();
+});
+$('btnCif').addEventListener('click',async()=>{
+  try{
+    if($('recordar').checked){ try{localStorage.setItem('claveOta',$('clave').value.trim());}catch(e){} }
+    $('estado').textContent='Cifrando…';$('estado').className='';
+    salida=await cifrarTornado(plano,$('clave').value.trim());
+    const d=new Date(), z=n=>String(n).padStart(2,'0');
+    nombreSalida='TORNADO_actualizacion_'+d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+'_'+z(d.getHours())+z(d.getMinutes())+'.tornado';
+    $('estado').textContent='Listo: '+nombreSalida+' ('+(salida.length/1024).toFixed(0)+' KB).';$('estado').className='ok';
+    $('s3').classList.add('done');
+    $('btnBajar').hidden=false;
+    const arch=new File([salida],nombreSalida,{type:'application/octet-stream'});
+    $('btnCompartir').hidden=!(navigator.canShare&&navigator.canShare({files:[arch]}));
+  }catch(e){ $('estado').textContent='No se pudo cifrar: '+(e.message||e); $('estado').className='bad'; }
+});
+$('btnBajar').addEventListener('click',()=>{
+  const u=URL.createObjectURL(new Blob([salida],{type:'application/octet-stream'}));
+  const a=document.createElement('a'); a.href=u; a.download=nombreSalida; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),10000);
+});
+$('btnCompartir').addEventListener('click',async()=>{
+  try{ await navigator.share({files:[new File([salida],nombreSalida,{type:'application/octet-stream'})],title:'Actualización ALARMA TORNADO'}); }
+  catch(e){ if(e.name!=='AbortError'){ $('estado').textContent='No se pudo compartir. Usá "Guardar en el celular".'; } }
+});
+revisar();
+</script>
+</body></html>
