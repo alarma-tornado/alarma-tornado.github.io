@@ -77,16 +77,21 @@ const enc=new TextEncoder(), dec=new TextDecoder();
 function log(t){const l=$('log');l.textContent+=new Date().toLocaleTimeString()+'  '+t+'\n';l.scrollTop=l.scrollHeight;}
 function estado(t,c){const e=$('estado');e.textContent=t;e.className=c||'';}
 function revisar(){$('btnEnv').disabled=!(ctrl&&archivo)||enviando;}
+let cola=[];
 function onNotif(ev){
   const m=dec.decode(ev.target.value).trim();
   log('Central: '+m);
-  if(m.startsWith('ERR')&&!esperando&&enviando){cancelado=true;estado('La central rechazó el archivo: '+m.slice(4),'bad');}
-  if(esperando&&esperando.test(m)){const f=esperando;esperando=null;f.res(m);}
+  if(esperando&&esperando.test(m)){const f=esperando;esperando=null;f.res(m);return;}
+  if(m.startsWith('ERR')&&enviando){cancelado=true;estado('La central rechazó el archivo: '+m.slice(4),'bad');}
+  cola.push(m);
 }
 function esperar(regex,ms){
   return new Promise((res,rej)=>{
+    const prueba=m=>regex.test(m)||m.startsWith('ERR');
+    const i=cola.findIndex(prueba);
+    if(i>=0){const m=cola[i];cola.splice(0,i+1);res(m);return;}
     const t=setTimeout(()=>{esperando=null;rej(new Error('La central no contestó a tiempo'));},ms);
-    esperando={test:m=>regex.test(m)||m.startsWith('ERR'),res:m=>{clearTimeout(t);res(m);}};
+    esperando={test:prueba,res:m=>{clearTimeout(t);res(m);}};
   });
 }
 async function escribir(car,bytes){
@@ -136,6 +141,7 @@ $('btnEnv').addEventListener('click',async()=>{
   const total=archivo.length;
   try{
     estado('Preparando la central…');
+    cola=[];
     await escribir(ctrl,enc.encode('START '+total));
     const r=await esperar(/^OK/,20000);
     if(r.startsWith('ERR')) throw new Error(r.slice(4));
